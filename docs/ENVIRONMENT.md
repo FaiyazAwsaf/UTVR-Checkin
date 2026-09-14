@@ -43,7 +43,7 @@ This app has **no Clerk keys by design** — end-customer identity is a `contact
 
 ## 3. `packages/backend/.env.local` — **auto-generated, do not hand-edit**
 
-Written by the Convex CLI on `convex dev`. Contains `CONVEX_DEPLOYMENT` (e.g. `local:…` or `dev:…`) and `CONVEX_URL`. If it's missing, run `pnpm --filter @workspace/backend setup`. There is no `.env.example` for this package — Convex deployment env vars are managed entirely via `npx convex env set` / the Convex dashboard, never a local file.
+Written by the Convex CLI on `convex dev`. Contains `CONVEX_DEPLOYMENT` (e.g. `local:…` or `dev:…`) and `CONVEX_URL`. If it's missing, run `bun run --filter @workspace/backend setup`. There is no `.env.example` for this package — Convex deployment env vars are managed entirely via `npx convex env set` / the Convex dashboard, never a local file.
 
 ## 4. Convex deployment env — set with `npx convex env set`
 
@@ -80,12 +80,12 @@ Verify with `npx convex env list` (requires the deployment to be running).
 ## 6. From zero to running
 
 ```bash
-pnpm install
+bun install
 cp apps/web/.env.example apps/web/.env.local          # fill in Clerk keys
 cp apps/widget/.env.example apps/widget/.env.local
-pnpm --filter @workspace/backend setup                # provisions Convex, writes its .env.local
+bun run --filter @workspace/backend setup                # provisions Convex, writes its .env.local
 # then, from packages/backend, set the deployment vars listed in §4
-pnpm dev                                              # both apps + convex dev
+bun run dev                                              # both apps + convex dev
 ```
 
 Web on :3000, widget on :3001 (open it as `http://localhost:3001/?organizationId=<clerkOrgId>`). The local Convex deployment only exists while `convex dev` runs — the apps cannot reach the backend without it.

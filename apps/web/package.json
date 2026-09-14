@@ -17,7 +17,6 @@
     "@hookform/resolvers": "^5.2.0",
     "@sentry/nextjs": "^9.42.1",
     "@workspace/backend": "workspace:*",
-    "@workspace/math": "workspace:*",
     "@workspace/ui": "workspace:*",
     "convex": "^1.25.4",
     "countries-and-timezones": "^3.8.0",
@@ -33,11 +32,13 @@
     "zod": "3.25.67"
   },
   "devDependencies": {
+    "@tailwindcss/postcss": "^4.0.8",
     "@types/node": "^20",
     "@types/react": "^19",
     "@types/react-dom": "^19",
     "@workspace/eslint-config": "workspace:^",
     "@workspace/typescript-config": "workspace:*",
+    "tailwindcss": "^4.0.8",
     "typescript": "^5.7.3"
   }
 }

@@ -116,7 +116,7 @@ Tier B makes the **widget** per-customer instantly; the dashboard itself usually
 ## 5. Rebrand verification checklist
 
 ```bash
-pnpm --filter web typecheck && pnpm --filter widget typecheck && pnpm lint
+bun run --filter web typecheck && bun run --filter widget typecheck && bun run lint
 grep -rn --include='*.tsx' --include='*.ts' -e 'UVTR Checkin' -e '#0b63f3' -e '#377FF6' apps packages --exclude-dir=node_modules --exclude-dir=.next
 ```
 Then eyeball: dashboard sidebar active-item gradient, widget header gradient, user chat bubble, sign-in page (Clerk primary), browser tab titles, assistant avatar in the widget, status buttons (resolved/escalated), generated avatars, and one full chat round-trip to hear the AI's tone.

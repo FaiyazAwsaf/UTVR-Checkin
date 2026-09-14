@@ -34,14 +34,13 @@ There is **no third deployed app**. The widget is consumed as a plain URL (`http
 ## 2. Repo map & tooling
 
 ```
-hotel-os/                         pnpm@10.4.1 + Turborepo, Node >= 20
+hotel-os/                         bun@1.3.13 + Turborepo, Node >= 20
 ├── apps/
 │   ├── web/                      dashboard  (next dev --port 3000)
 │   └── widget/                   widget     (next dev --turbopack --port 3001)
 ├── packages/
 │   ├── backend/                  Convex deployment (@workspace/backend)
 │   ├── ui/                       shadcn library + brand config (@workspace/ui)
-│   ├── math/                     DEAD template scaffolding — unused, safe to delete
 │   ├── eslint-config/            shared lint config
 │   └── typescript-config/        shared tsconfigs
 ├── docs/                         this file + companions (see header)
@@ -53,14 +52,14 @@ hotel-os/                         pnpm@10.4.1 + Turborepo, Node >= 20
 ### Commands
 
 ```bash
-pnpm dev                              # turbo: both apps + convex dev concurrently
-pnpm build | pnpm lint | pnpm format
-pnpm --filter web dev                 # single app (port 3000)
-pnpm --filter widget dev              # single app (port 3001, turbopack)
-pnpm --filter web typecheck           # tsc --noEmit — NOT wired into turbo, run manually
-pnpm --filter widget typecheck
-pnpm --filter @workspace/backend setup  # convex dev --until-success (first provisioning)
-pnpm dlx shadcn@latest add <comp> -c apps/web   # lands in packages/ui/src/components
+bun run dev                              # turbo: both apps + convex dev concurrently
+bun run build | bun run lint | bun run format
+bun run --filter web dev                 # single app (port 3000)
+bun run --filter widget dev              # single app (port 3001, turbopack)
+bun run --filter web typecheck           # tsc --noEmit — NOT wired into turbo, run manually
+bun run --filter widget typecheck
+bun run --filter @workspace/backend setup  # convex dev --until-success (first provisioning)
+bunx shadcn@latest add <comp> -c apps/web   # lands in packages/ui/src/components
 ```
 
 **There are no tests.** Typecheck + lint are the only gates. `packages/backend` has no `typecheck` script of its own — validate backend edits by confirming `convex dev` regenerates `_generated/` cleanly, then running typecheck in both apps (Convex types flow into them via each app's `tsconfig.json` path mapping).
@@ -277,7 +276,7 @@ Rules of thumb:
 - Actions (not mutations) for anything hitting external APIs (OpenAI, Vapi, Clerk); actions call back into the DB via `internal.system.*`.
 - Messages: always `supportAgent.listMessages` / `saveMessage` / `generateText` — never `ctx.db` (they're in the agent component).
 - RAG: always pass `namespace: orgId` on read _and_ write; omitting it on write makes the entry global (cross-tenant leak).
-- After editing: `convex dev` regenerates `_generated/`; run `pnpm --filter web typecheck && pnpm --filter widget typecheck`.
+- After editing: `convex dev` regenerates `_generated/`; run `bun run --filter web typecheck && bun run --filter widget typecheck`.
 - Client wiring: `useQuery`/`useMutation`/`useAction`/`usePaginatedQuery` from `convex/react` with `api.private.*` (web) or `api.public.*` (widget); thread messages via `useThreadMessages` + `toUIMessages` from `@convex-dev/agent/react`.
 
 ---
@@ -407,7 +406,7 @@ The current voice event loop is implemented in `use-vapi.ts`: `call-start`/`call
 
 ## 8. `packages/ui` (shared library)
 
-`@workspace/ui`, imported as `@workspace/ui/components/*` (tsconfig-mapped, `transpilePackages` in both apps). Contents: shadcn "new-york" components (added via `pnpm dlx shadcn@latest add <c> -c apps/web`), AI chat primitives (`components/ai/{conversation,input,message,response,suggestion}` — used by both the operator thread view and the widget chat), `DicebearAvatar`, `Dropzone`, `Hint`, `InfiniteScrollTrigger`, hook `use-infinite-scroll.ts`, `src/brand.ts` (deployment-wide brand fallback config, sourced from `NEXT_PUBLIC_BRAND_*` env vars), a dormant shadcn `chart.tsx` (recharts wrapper — a real dependency, but no current view consumes it yet), and **the entire Tailwind v4 theme** in `src/styles/globals.css` (config-less Tailwind; all design tokens are CSS custom properties there — see `docs/WHITE_LABELING.md`).
+`@workspace/ui`, imported as `@workspace/ui/components/*` (tsconfig-mapped, `transpilePackages` in both apps). Contents: shadcn "new-york" components (added via `bunx shadcn@latest add <c> -c apps/web`), AI chat primitives (`components/ai/{conversation,input,message,response,suggestion}` — used by both the operator thread view and the widget chat), `DicebearAvatar`, `Dropzone`, `Hint`, `InfiniteScrollTrigger`, hook `use-infinite-scroll.ts`, `src/brand.ts` (deployment-wide brand fallback config, sourced from `NEXT_PUBLIC_BRAND_*` env vars), a dormant shadcn `chart.tsx` (recharts wrapper — a real dependency, but no current view consumes it yet), and **the entire Tailwind v4 theme** in `src/styles/globals.css` (config-less Tailwind; all design tokens are CSS custom properties there — see `docs/WHITE_LABELING.md`).
 
 ---
 
@@ -423,7 +422,7 @@ The current voice event loop is implemented in `use-vapi.ts`: `call-start`/`call
 
 **Bugs:** 6. `"UNAUTHORZIED"` typo (`private/conversations.ts`) breaks client error-code switches that depend on the exact string. 7. `private/files.addFile` dedupe path returns a URL for a just-deleted blob. 8. `public/organizations.validate` — Clerk throws for unknown orgs; `{valid:false}` branch dead. 9. Widget chat form resets before the send await — failed sends lose the draft (verify current behavior before relying on this). 10. `use-vapi.ts`: `isConnecting` may not clear correctly if `vapi` is still null in some races — verify before shipping voice-dependent flows.
 
-**Gaps / dead code / paper cuts:** `/integrations` and `/billing` are unimplemented stub pages · widget's `contact` screen is unreachable (TODO placeholder) · no session reaper cron (expired `contactSessions` rows accumulate) · N+1 `listMessages` in both conversation lists · post-pagination category filters → short pages · `search` tool double-writes its answer (saves it directly, then the outer agent often restates it) · dead deps (`@workspace/math`) · `contactSessions.validate` is a mutation not a query · `users.ts`/`users` table is entirely dead scaffold, including a handler that unconditionally throws before its insert · no `crons.ts` or `ctx.scheduler` usage anywhere yet — introduce this file fresh if any feature needs scheduled/delayed execution.
+**Gaps / dead code / paper cuts:** `/integrations` and `/billing` are unimplemented stub pages · widget's `contact` screen is unreachable (TODO placeholder) · no session reaper cron (expired `contactSessions` rows accumulate) · N+1 `listMessages` in both conversation lists · post-pagination category filters → short pages · `search` tool double-writes its answer (saves it directly, then the outer agent often restates it) · `contactSessions.validate` is a mutation not a query · `users.ts`/`users` table is entirely dead scaffold, including a handler that unconditionally throws before its insert · no `crons.ts` or `ctx.scheduler` usage anywhere yet — introduce this file fresh if any feature needs scheduled/delayed execution.
 
 ---
 

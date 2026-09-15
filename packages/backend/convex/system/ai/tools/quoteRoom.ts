@@ -1,7 +1,6 @@
 import { createTool } from "@convex-dev/agent";
 import z from "zod";
 import { internal } from "../../../_generated/api";
-import { hotelBookingAgent } from "../agents/hotelBookingAgent";
 import { pickByLanguage } from "../../../lib/hotel/language";
 
 const differenceInNights = (checkInDate: string, checkOutDate: string) => {
@@ -111,14 +110,6 @@ export const quoteRoom = createTool({
       en: `"${roomType.name}" — ${nights} nights x ৳${roomType.basePrice} = ৳${roomTotal}${
         selectedPackages.length ? `\nAdded packages: ${packageList}` : ""
       }\nTotal: ৳${total}`,
-    });
-
-    await hotelBookingAgent.saveMessage(ctx, {
-      threadId: ctx.threadId,
-      message: {
-        role: "assistant",
-        content: summary,
-      },
     });
 
     return summary;

@@ -1,7 +1,6 @@
 import { createTool } from "@convex-dev/agent";
 import z from "zod";
 import { internal } from "../../../_generated/api";
-import { hotelBookingAgent } from "../agents/hotelBookingAgent";
 import { pickByLanguage } from "../../../lib/hotel/language";
 
 export const confirmBooking = createTool({
@@ -57,11 +56,6 @@ export const confirmBooking = createTool({
     const message = pickByLanguage(language, {
       bn: `বুকিং নিশ্চিত হয়েছে! আপনার কনফার্মেশন কোড: ${result.confirmationCode}। বিস্তারিত ও QR কোড আপনার অ্যাপ/ইমেইলে পাঠানো হয়েছে।`,
       en: `Booking confirmed! Your confirmation code is: ${result.confirmationCode}. Details and your QR code are available in your app/email.`,
-    });
-
-    await hotelBookingAgent.saveMessage(ctx, {
-      threadId: ctx.threadId,
-      message: { role: "assistant", content: message },
     });
 
     return message;

@@ -1,7 +1,6 @@
 import { createTool } from "@convex-dev/agent";
 import z from "zod";
 import { internal } from "../../../_generated/api";
-import { supportAgent } from "../agents/supportAgent";
 import { searchKnowledgeBase } from "../knowledgeSearch";
 
 export const search = createTool({
@@ -27,14 +26,6 @@ export const search = createTool({
     const orgId = conversation.organizationId;
 
     const response = await searchKnowledgeBase(ctx, orgId, args.query);
-
-    await supportAgent.saveMessage(ctx, {
-      threadId: ctx.threadId,
-      message: {
-        role: "assistant",
-        content: response,
-      },
-    });
 
     return response;
   },

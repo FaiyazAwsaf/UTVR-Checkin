@@ -1,7 +1,6 @@
 import { createTool } from "@convex-dev/agent";
 import z from "zod";
 import { internal } from "../../../_generated/api";
-import { hotelBookingAgent } from "../agents/hotelBookingAgent";
 import { searchKnowledgeBase } from "../knowledgeSearch";
 
 export const hotelFaqSearch = createTool({
@@ -29,11 +28,6 @@ export const hotelFaqSearch = createTool({
       conversation.organizationId,
       args.query,
     );
-
-    await hotelBookingAgent.saveMessage(ctx, {
-      threadId: ctx.threadId,
-      message: { role: "assistant", content: response },
-    });
 
     return response;
   },

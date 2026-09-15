@@ -1,7 +1,6 @@
 import { createTool } from "@convex-dev/agent";
 import z from "zod";
 import { internal } from "../../../_generated/api";
-import { hotelBookingAgent } from "../agents/hotelBookingAgent";
 import { pickByLanguage } from "../../../lib/hotel/language";
 
 export const cancelHold = createTool({
@@ -47,11 +46,6 @@ export const cancelHold = createTool({
     const message = pickByLanguage(language, {
       bn: "আপনার হোল্ডটি বাতিল করা হয়েছে। অন্য কোনোভাবে সাহায্য প্রয়োজন হলে জানান।",
       en: "Your hold has been cancelled. Let me know if there's anything else I can help with.",
-    });
-
-    await hotelBookingAgent.saveMessage(ctx, {
-      threadId: ctx.threadId,
-      message: { role: "assistant", content: message },
     });
 
     return message;

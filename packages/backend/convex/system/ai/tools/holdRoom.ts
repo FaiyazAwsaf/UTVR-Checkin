@@ -1,7 +1,6 @@
 import { createTool } from "@convex-dev/agent";
 import z from "zod";
 import { internal } from "../../../_generated/api";
-import { hotelBookingAgent } from "../agents/hotelBookingAgent";
 import { pickByLanguage } from "../../../lib/hotel/language";
 
 const differenceInNights = (checkInDate: string, checkOutDate: string) => {
@@ -134,11 +133,6 @@ export const holdRoom = createTool({
         en: `This room is currently under discussion with another guest. We'll let you know as soon as it becomes available. In the meantime, here are some other options you could consider: ${alternativesEn}.`,
       });
 
-      await hotelBookingAgent.saveMessage(ctx, {
-        threadId: ctx.threadId,
-        message: { role: "assistant", content: message },
-      });
-
       return message;
     }
 
@@ -149,11 +143,6 @@ export const holdRoom = createTool({
     const message = pickByLanguage(language, {
       bn: `"${roomType.name}" রুমটি আপনার জন্য হোল্ড করা হয়েছে, মোট মূল্য ৳${quotedTotalPrice}। এই হোল্ডটি প্রায় ${expiresInMinutes} মিনিট পর্যন্ত বৈধ থাকবে — এর মধ্যে বুকিং নিশ্চিত করুন।`,
       en: `"${roomType.name}" has been held for you, total ৳${quotedTotalPrice}. This hold is valid for about ${expiresInMinutes} minutes — please confirm your booking before then.`,
-    });
-
-    await hotelBookingAgent.saveMessage(ctx, {
-      threadId: ctx.threadId,
-      message: { role: "assistant", content: message },
     });
 
     return message;

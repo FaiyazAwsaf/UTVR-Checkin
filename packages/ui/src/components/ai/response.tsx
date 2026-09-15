@@ -34,7 +34,11 @@ const components: Options["components"] = {
   ),
   a: ({ children, className, ...props }) => (
     <a
-      className={cn("font-medium text-primary underline", className)}
+      className={cn(
+        "font-medium underline",
+        "text-primary group-[.is-user]:text-inherit",
+        className,
+      )}
       rel="noreferrer"
       target="_blank"
       {...props}

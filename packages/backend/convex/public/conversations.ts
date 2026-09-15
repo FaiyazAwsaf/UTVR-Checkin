@@ -2,6 +2,7 @@ import { mutation, query } from "../_generated/server";
 import { components } from "../_generated/api";
 import { ConvexError, v } from "convex/values";
 import { supportAgent } from "../system/ai/agents/supportAgent";
+import { hotelBookingAgent } from "../system/ai/agents/hotelBookingAgent";
 import { MessageDoc, saveMessage } from "@convex-dev/agent";
 import { paginationOptsValidator } from "convex/server";
 import {
@@ -159,6 +160,62 @@ export const create = mutation({
       status: "unresolved",
       organizationId: args.organizationId,
       threadId,
+      mode: "support",
+    });
+
+    return conversationId;
+  },
+});
+
+export const createBooking = mutation({
+  args: {
+    organizationId: v.string(),
+    contactSessionId: v.id("contactSessions"),
+  },
+  handler: async (ctx, args) => {
+    const session = await ctx.db.get(args.contactSessionId);
+
+    if (!session || session.expiresAt < Date.now()) {
+      throw new ConvexError({
+        code: "UNAUTHORIZED",
+        message: "Invalid session",
+      });
+    }
+
+    if (session.organizationId !== args.organizationId) {
+      throw new ConvexError({
+        code: "UNAUTHORIZED",
+        message: "Organization mismatch",
+      });
+    }
+
+    const hotelProfile = await ctx.db
+      .query("hotelProfiles")
+      .withIndex("by_organization_id", (q) =>
+        q.eq("organizationId", args.organizationId),
+      )
+      .unique();
+
+    const { threadId } = await hotelBookingAgent.createThread(ctx, {
+      userId: args.organizationId,
+    });
+
+    const hotelName = hotelProfile?.name ?? "our hotel";
+
+    await saveMessage(ctx, components.agent, {
+      threadId,
+      message: {
+        role: "assistant",
+        content: `Hello! I'm the booking assistant for ${hotelName}. Let me know your check-in and check-out dates, party size, and any room preference, and I can help right away.\n\nহ্যালো! আমি ${hotelName}-এর বুকিং সহকারী। আপনার চেক-ইন ও চেক-আউট তারিখ, কতজন থাকবেন, এবং কোন ধরনের রুম পছন্দ করবেন জানালে আমি এখনই সাহায়তা করতে পারব।`,
+      },
+    });
+
+    const conversationId = await ctx.db.insert("conversations", {
+      contactSessionId: session._id,
+      status: "unresolved",
+      organizationId: args.organizationId,
+      threadId,
+      mode: "booking",
     });
 
     return conversationId;

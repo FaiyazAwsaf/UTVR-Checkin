@@ -4,6 +4,7 @@ import { supportAgent } from "../system/ai/agents/supportAgent";
 import { MessageDoc } from "@convex-dev/agent";
 import { paginationOptsValidator, PaginationResult } from "convex/server";
 import { Doc } from "../_generated/dataModel";
+import { internal } from "../_generated/api";
 
 export const updateStatus = mutation({
   args: {
@@ -52,6 +53,13 @@ export const updateStatus = mutation({
     await ctx.db.patch(args.conversationId, {
       status: args.status,
     });
+
+    if (args.status === "escalated" || args.status === "resolved") {
+      await ctx.runMutation(
+        internal.system.conversations.releaseHoldForConversation,
+        { conversationId: args.conversationId },
+      );
+    }
   },
 });
 

@@ -2,12 +2,16 @@
 
 import { OrganizationSwitcher, UserButton } from "@clerk/nextjs";
 import {
+  BedDoubleIcon,
   CreditCardIcon,
+  HotelIcon,
   InboxIcon,
   LayoutDashboardIcon,
   LibraryBigIcon,
   Mic,
+  PackagePlusIcon,
   PaletteIcon,
+  LayoutGridIcon,
 } from "lucide-react";
 import Image from "next/image";
 import Link from "next/link";
@@ -37,6 +41,29 @@ const customerSupportItems = [
     title: "Knowledge Base",
     url: "/files",
     icon: LibraryBigIcon,
+  },
+];
+
+const hotelItems = [
+  {
+    title: "Reports",
+    url: "/hotel/reports",
+    icon: LayoutGridIcon,
+  },
+  {
+    title: "Hotel Profile",
+    url: "/hotel/profile",
+    icon: HotelIcon,
+  },
+  {
+    title: "Room Types",
+    url: "/hotel/rooms",
+    icon: BedDoubleIcon,
+  },
+  {
+    title: "Packages & Add-ons",
+    url: "/hotel/packages",
+    icon: PackagePlusIcon,
   },
 ];
 
@@ -109,6 +136,32 @@ export const DashboardSidebar = () => {
           <SidebarGroupContent>
             <SidebarMenu>
               {customerSupportItems.map((item) => (
+                <SidebarMenuItem key={item.title}>
+                  <SidebarMenuButton
+                    asChild
+                    isActive={isActive(item.url)}
+                    className={cn(
+                       isActive(item.url) && "bg-gradient-to-b from-sidebar-primary to-brand-gradient! text-sidebar-primary-foreground! hover:opacity-90!"
+                    )}
+                    tooltip={item.title}
+                  >
+                    <Link href={item.url}>
+                      <item.icon className="size-4" />
+                      <span>{item.title}</span>
+                    </Link>
+                  </SidebarMenuButton>
+                </SidebarMenuItem>
+              ))}
+            </SidebarMenu>
+          </SidebarGroupContent>
+        </SidebarGroup>
+
+        {/* Hotel */}
+        <SidebarGroup>
+          <SidebarGroupLabel>Hotel</SidebarGroupLabel>
+          <SidebarGroupContent>
+            <SidebarMenu>
+              {hotelItems.map((item) => (
                 <SidebarMenuItem key={item.title}>
                   <SidebarMenuButton
                     asChild

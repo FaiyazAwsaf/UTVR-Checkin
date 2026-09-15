@@ -2,11 +2,18 @@ import { ConvexError, v } from "convex/values";
 import { action, query } from "../_generated/server";
 import { components, internal } from "../_generated/api";
 import { supportAgent } from "../system/ai/agents/supportAgent";
+import { hotelBookingAgent } from "../system/ai/agents/hotelBookingAgent";
 import { paginationOptsValidator } from "convex/server";
 import { escalateConversation } from "../system/ai/tools/escalateConversation";
 import { resolveConversation } from "../system/ai/tools/resolveConversation";
 import { saveMessage } from "@convex-dev/agent";
 import { search } from "../system/ai/tools/search";
+import { checkAvailability } from "../system/ai/tools/checkAvailability";
+import { quoteRoom } from "../system/ai/tools/quoteRoom";
+import { holdRoom } from "../system/ai/tools/holdRoom";
+import { confirmBooking } from "../system/ai/tools/confirmBooking";
+import { cancelHold } from "../system/ai/tools/cancelHold";
+import { hotelFaqSearch } from "../system/ai/tools/hotelFaqSearch";
 
 export const create = action({
   args: {
@@ -65,18 +72,38 @@ export const create = action({
       conversation.status === "unresolved";
 
     if (shouldTriggerAgent) {
-      await supportAgent.generateText(
-        ctx,
-        { threadId: args.threadId },
-        {
-          prompt: args.prompt,
-          tools: {
-            escalateConversationTool: escalateConversation,
-            resolveConversationTool: resolveConversation,
-            searchTool: search,
-          }
-        },
-      )
+      if (conversation.mode === "booking") {
+        await hotelBookingAgent.generateText(
+          ctx,
+          { threadId: args.threadId },
+          {
+            prompt: args.prompt,
+            tools: {
+              checkAvailabilityTool: checkAvailability,
+              quoteRoomTool: quoteRoom,
+              holdRoomTool: holdRoom,
+              confirmBookingTool: confirmBooking,
+              cancelHoldTool: cancelHold,
+              hotelFaqSearchTool: hotelFaqSearch,
+              escalateConversationTool: escalateConversation,
+              resolveConversationTool: resolveConversation,
+            },
+          },
+        );
+      } else {
+        await supportAgent.generateText(
+          ctx,
+          { threadId: args.threadId },
+          {
+            prompt: args.prompt,
+            tools: {
+              escalateConversationTool: escalateConversation,
+              resolveConversationTool: resolveConversation,
+              searchTool: search,
+            }
+          },
+        )
+      }
     } else {
       await saveMessage(ctx, components.agent, {
         threadId: args.threadId,

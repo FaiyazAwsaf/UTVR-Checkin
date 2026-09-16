@@ -2,7 +2,7 @@
 
 import { useQuery } from "convex/react";
 import { useAtomValue, useSetAtom } from "jotai";
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useRef } from "react";
 import {
   AlertCircleIcon,
   ArrowLeftIcon,
@@ -27,16 +27,12 @@ import {
 import { DEMO_PROFILES } from "@/modules/booking/data/demo-profiles";
 import {
   useBookingVapi,
-  type GuestLanguage,
 } from "@/modules/booking/hooks/use-booking-vapi";
 
 // Ported from apps/widget/modules/widget/ui/screens/widget-voice-screen.tsx's
 // visual pattern, adapted for a full-viewport mobile app screen instead of an
-// iframe-panel widget. Unlike the widget's voice screen (a single fixed
-// knowledge-search assistant), this one needs a language pre-selection step
-// before the call, since the backend has no saved user message to detect
-// language from until after the first tool call — see
-// system/ai/hotelVoiceBooking.ts.
+// Voice booking is intentionally Bangla-only. Chat remains multilingual and
+// continues to detect the guest's language independently.
 export const BookingVoiceScreen = () => {
   const setScreen = useSetAtom(screenAtom);
   const setConfirmationCode = useSetAtom(confirmationCodeAtom);
@@ -53,7 +49,6 @@ export const BookingVoiceScreen = () => {
     conversationIdAtomFamily(activeProfileId ?? ""),
   );
 
-  const [guestLanguage, setGuestLanguage] = useState<GuestLanguage>("en");
   const transcriptEndRef = useRef<HTMLDivElement>(null);
 
   const {
@@ -67,7 +62,7 @@ export const BookingVoiceScreen = () => {
     startCall,
     toggleMute,
     transcript,
-  } = useBookingVapi(contactSessionId, conversationId, guestLanguage);
+  } = useBookingVapi(contactSessionId, conversationId, "bn");
 
   const latestBooking = useQuery(
     api.public.bookings.getLatestForSession,
@@ -131,26 +126,6 @@ export const BookingVoiceScreen = () => {
       </header>
 
       <div className="flex min-h-0 flex-1 flex-col bg-muted/40">
-        {!isConnected && !isConnecting && (
-          <section className="border-b bg-background px-4 py-4">
-            <p className="mb-2 text-sm font-medium">Call language</p>
-            <div className="grid grid-cols-2 gap-2">
-              <Button
-                onClick={() => setGuestLanguage("en")}
-                variant={guestLanguage === "en" ? "default" : "outline"}
-              >
-                English
-              </Button>
-              <Button
-                onClick={() => setGuestLanguage("bn")}
-                variant={guestLanguage === "bn" ? "default" : "outline"}
-              >
-                বাংলা
-              </Button>
-            </div>
-          </section>
-        )}
-
         <section
           aria-live="polite"
           className="flex min-h-0 flex-1 flex-col px-4 py-4"

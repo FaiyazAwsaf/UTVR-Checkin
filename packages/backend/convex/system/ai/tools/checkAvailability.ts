@@ -5,11 +5,13 @@ import { checkAvailabilityLogic } from "../../hotel/bookingActions";
 
 export const checkAvailability = createTool({
   description:
-    "Check whether a specific room type is currently available, held by another guest, or already booked",
+    "Check whether a specific room type is available for the requested dates. Use listAvailableRoomsTool when the guest wants all available room types.",
   args: z.object({
     roomTypeName: z
       .string()
       .describe("The name of the room type the guest is asking about"),
+    checkInDate: z.string().optional().describe("Check-in date in YYYY-MM-DD format"),
+    checkOutDate: z.string().optional().describe("Check-out date in YYYY-MM-DD format"),
   }),
   handler: async (ctx, args): Promise<string> => {
     if (!ctx.threadId) {

@@ -60,6 +60,8 @@ const parseArguments = (value: unknown): Record<string, unknown> | null => {
 
 const hotelBookingToolNames = [
   "check_availability",
+  "current_date",
+  "list_available_rooms",
   "quote_room",
   "hold_room",
   "confirm_booking",
@@ -268,7 +270,34 @@ http.route({
               }
               result = await ctx.runAction(
                 internal.system.ai.hotelVoiceBooking.checkAvailability,
-                { ...baseArgs, roomTypeName },
+                {
+                  ...baseArgs,
+                  roomTypeName,
+                  checkInDate:
+                    typeof args.checkInDate === "string" ? args.checkInDate : undefined,
+                  checkOutDate:
+                    typeof args.checkOutDate === "string" ? args.checkOutDate : undefined,
+                },
+              );
+              break;
+            }
+            case "current_date": {
+              result = await ctx.runAction(
+                internal.system.ai.hotelVoiceBooking.currentDate,
+                baseArgs,
+              );
+              break;
+            }
+            case "list_available_rooms": {
+              result = await ctx.runAction(
+                internal.system.ai.hotelVoiceBooking.listAvailableRooms,
+                {
+                  ...baseArgs,
+                  checkInDate:
+                    typeof args.checkInDate === "string" ? args.checkInDate : undefined,
+                  checkOutDate:
+                    typeof args.checkOutDate === "string" ? args.checkOutDate : undefined,
+                },
               );
               break;
             }

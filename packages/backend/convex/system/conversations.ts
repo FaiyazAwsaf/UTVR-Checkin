@@ -83,7 +83,16 @@ export const getByThreadId = internalQuery({
       .query("conversations")
       .withIndex("by_thread_id", (q) => q.eq("threadId", args.threadId))
       .unique();
-    
+
     return conversation;
+  },
+});
+
+export const getById = internalQuery({
+  args: {
+    conversationId: v.id("conversations"),
+  },
+  handler: async (ctx, args) => {
+    return await ctx.db.get(args.conversationId);
   },
 });

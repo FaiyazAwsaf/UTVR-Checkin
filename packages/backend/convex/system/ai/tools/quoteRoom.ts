@@ -1,18 +1,7 @@
 import { createTool } from "@convex-dev/agent";
 import z from "zod";
 import { internal } from "../../../_generated/api";
-import { pickByLanguage } from "../../../lib/hotel/language";
-
-const differenceInNights = (checkInDate: string, checkOutDate: string) => {
-  const start = new Date(checkInDate).getTime();
-  const end = new Date(checkOutDate).getTime();
-
-  if (Number.isNaN(start) || Number.isNaN(end) || end <= start) {
-    return null;
-  }
-
-  return Math.round((end - start) / (24 * 60 * 60 * 1000));
-};
+import { quoteRoomLogic } from "../../hotel/bookingActions";
 
 export const quoteRoom = createTool({
   description:
@@ -45,73 +34,6 @@ export const quoteRoom = createTool({
       threadId: ctx.threadId,
     });
 
-    const roomType = await ctx.runQuery(
-      internal.system.hotel.roomTypes.getByOrganizationAndName,
-      { organizationId: conversation.organizationId, name: args.roomTypeName },
-    );
-
-    if (!roomType) {
-      return pickByLanguage(language, {
-        bn: `"${args.roomTypeName}" নামে কোনো রুম টাইপ পাওয়া যায়নি।`,
-        en: `No room type found named "${args.roomTypeName}".`,
-      });
-    }
-
-    if (args.partySize > roomType.maxOccupancy) {
-      return pickByLanguage(language, {
-        bn: `"${roomType.name}" রুমে সর্বোচ্চ ${roomType.maxOccupancy} জন থাকতে পারবেন, আপনার দলের সংখ্যা ${args.partySize} জন। অনুগ্রহ করে অন্য রুম টাইপ বিবেচনা করুন।`,
-        en: `"${roomType.name}" sleeps up to ${roomType.maxOccupancy} guests, but your party is ${args.partySize}. Please consider a different room type.`,
-      });
-    }
-
-    const nights = differenceInNights(args.checkInDate, args.checkOutDate);
-
-    if (nights === null) {
-      return pickByLanguage(language, {
-        bn: "চেক-ইন ও চেক-আউট তারিখ সঠিকভাবে বোঝা যায়নি, অনুগ্রহ করে তারিখ আবার জানান।",
-        en: "I couldn't understand the check-in/check-out dates — could you share them again?",
-      });
-    }
-
-    const roomTotal = nights * roomType.basePrice;
-
-    const allPackages = await ctx.runQuery(
-      internal.system.hotel.packageAddOns.getManyByOrganization,
-      { organizationId: conversation.organizationId },
-    );
-
-    const requestedNames = (args.packageNames ?? []).map((name) =>
-      name.trim().toLowerCase(),
-    );
-
-    const selectedPackages = allPackages.filter((pkg) =>
-      requestedNames.some(
-        (name) =>
-          pkg.name.toLowerCase().includes(name) ||
-          name.includes(pkg.name.toLowerCase()),
-      ),
-    );
-
-    const packagesTotal = selectedPackages.reduce(
-      (sum, pkg) => sum + pkg.price,
-      0,
-    );
-
-    const total = roomTotal + packagesTotal;
-
-    const packageList = selectedPackages
-      .map((p) => `${p.name} (৳${p.price})`)
-      .join(", ");
-
-    const summary = pickByLanguage(language, {
-      bn: `"${roomType.name}" — ${nights} রাত x ৳${roomType.basePrice} = ৳${roomTotal}${
-        selectedPackages.length ? `\nযোগ করা প্যাকেজ: ${packageList}` : ""
-      }\nমোট মূল্য: ৳${total}`,
-      en: `"${roomType.name}" — ${nights} nights x ৳${roomType.basePrice} = ৳${roomTotal}${
-        selectedPackages.length ? `\nAdded packages: ${packageList}` : ""
-      }\nTotal: ৳${total}`,
-    });
-
-    return summary;
+    return quoteRoomLogic(ctx, conversation, language, args);
   },
 });

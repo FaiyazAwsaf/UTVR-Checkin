@@ -10,9 +10,12 @@ import {
   checkAvailabilityLogic,
   confirmBookingLogic,
   holdRoomLogic,
+  listAvailableRoomsLogic,
   quoteRoomLogic,
 } from "../hotel/bookingActions";
 import { pickByLanguage, type GuestLanguage } from "../../lib/hotel/language";
+import { getCurrentDate } from "../../lib/hotel/date";
+import { spokenBengaliDate, spokenEnglishDate } from "../../lib/hotel/spoken";
 
 // Voice front-end for the same booking state machine the text tools use
 // (system/hotel/bookingActions.ts) — bridged from Vapi via the
@@ -106,6 +109,8 @@ export const checkAvailability = internalAction({
     conversationId: v.id("conversations"),
     guestLanguage: guestLanguageValidator,
     roomTypeName: v.string(),
+    checkInDate: v.optional(v.string()),
+    checkOutDate: v.optional(v.string()),
   },
   handler: async (ctx, args): Promise<string> => {
     try {
@@ -115,7 +120,11 @@ export const checkAvailability = internalAction({
         ctx,
         conversation,
         args.guestLanguage,
-        { roomTypeName: args.roomTypeName },
+        {
+          roomTypeName: args.roomTypeName,
+          checkInDate: args.checkInDate,
+          checkOutDate: args.checkOutDate,
+        },
       );
 
       await saveExchange(
@@ -131,6 +140,53 @@ export const checkAvailability = internalAction({
         throw error;
       }
 
+      return bilingualFallback(args.guestLanguage);
+    }
+  },
+});
+
+export const currentDate = internalAction({
+  args: {
+    contactSessionId: v.id("contactSessions"),
+    conversationId: v.id("conversations"),
+    guestLanguage: guestLanguageValidator,
+  },
+  handler: async (ctx, args): Promise<string> => {
+    const { conversation } = await resolveBookingContext(ctx, args);
+    const date = getCurrentDate();
+    const reply = pickByLanguage(args.guestLanguage, {
+      bn: `আজকের তারিখ ${spokenBengaliDate(date)}।`,
+      en: `Today's date is ${spokenEnglishDate(date)}.`,
+    });
+    await saveExchange(ctx, conversation.threadId, "Checking today's date", reply);
+    return reply;
+  },
+});
+
+export const listAvailableRooms = internalAction({
+  args: {
+    contactSessionId: v.id("contactSessions"),
+    conversationId: v.id("conversations"),
+    guestLanguage: guestLanguageValidator,
+    checkInDate: v.optional(v.string()),
+    checkOutDate: v.optional(v.string()),
+  },
+  handler: async (ctx, args): Promise<string> => {
+    try {
+      const { conversation } = await resolveBookingContext(ctx, args);
+      const reply = await listAvailableRoomsLogic(ctx, conversation, args.guestLanguage, {
+        checkInDate: args.checkInDate,
+        checkOutDate: args.checkOutDate,
+      });
+      await saveExchange(
+        ctx,
+        conversation.threadId,
+        `Listing available rooms${args.checkInDate ? ` from ${args.checkInDate}` : ""}`,
+        reply,
+      );
+      return reply;
+    } catch (error) {
+      if (error instanceof ConvexError) throw error;
       return bilingualFallback(args.guestLanguage);
     }
   },

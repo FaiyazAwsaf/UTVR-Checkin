@@ -14,6 +14,8 @@ import { holdRoom } from "../system/ai/tools/holdRoom";
 import { confirmBooking } from "../system/ai/tools/confirmBooking";
 import { cancelHold } from "../system/ai/tools/cancelHold";
 import { hotelFaqSearch } from "../system/ai/tools/hotelFaqSearch";
+import { currentDate } from "../system/ai/tools/currentDate";
+import { listAvailableRooms } from "../system/ai/tools/listAvailableRooms";
 
 export const create = action({
   args: {
@@ -80,6 +82,8 @@ export const create = action({
             prompt: args.prompt,
             tools: {
               checkAvailabilityTool: checkAvailability,
+              currentDateTool: currentDate,
+              listAvailableRoomsTool: listAvailableRooms,
               quoteRoomTool: quoteRoom,
               holdRoomTool: holdRoom,
               confirmBookingTool: confirmBooking,

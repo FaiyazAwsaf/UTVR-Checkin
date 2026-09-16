@@ -115,13 +115,27 @@ export const useBookingVapi = (
 
     vapiInstance.on("message", (message) => {
       if (message.type === "transcript" && message.transcriptType === "final") {
-        setTranscript((prev) => [
-          ...prev,
-          {
-            role: message.role === "user" ? "user" : "assistant",
-            text: message.transcript,
-          },
-        ]);
+        const role = message.role === "user" ? "user" : "assistant";
+        const text = message.transcript
+          .replace(/^\s*\|\s*/, "")
+          .trim();
+
+        if (!text) {
+          return;
+        }
+
+        setTranscript((prev) => {
+          const last = prev.at(-1);
+
+          if (last?.role === role) {
+            return [
+              ...prev.slice(0, -1),
+              { ...last, text: `${last.text} ${text}`.trim() },
+            ];
+          }
+
+          return [...prev, { role, text }];
+        });
       }
     });
 

@@ -2,6 +2,13 @@ import { internal } from "../../_generated/api";
 import type { ActionCtx } from "../../_generated/server";
 import type { Doc } from "../../_generated/dataModel";
 import { pickByLanguage, type GuestLanguage } from "../../lib/hotel/language";
+import { getCurrentDate, isValidDateRange } from "../../lib/hotel/date";
+import {
+  bengaliDigits,
+  numberToWords,
+  spokenBengaliDate,
+  spokenEnglishDate,
+} from "../../lib/hotel/spoken";
 
 // Single implementation of each booking action, called by both the text
 // tools (system/ai/tools/*) and the voice bridge (system/ai/hotelVoiceBooking.ts)
@@ -23,7 +30,7 @@ export const checkAvailabilityLogic = async (
   ctx: ActionCtx,
   conversation: Doc<"conversations">,
   language: GuestLanguage,
-  args: { roomTypeName: string },
+  args: { roomTypeName: string; checkInDate?: string; checkOutDate?: string },
 ): Promise<string> => {
   const roomType = await ctx.runQuery(
     internal.system.hotel.roomTypes.getByOrganizationAndName,
@@ -50,10 +57,37 @@ export const checkAvailabilityLogic = async (
     roomTypeId: roomType._id,
   });
 
+  if (args.checkInDate || args.checkOutDate) {
+    const checkInDate = args.checkInDate ?? getCurrentDate();
+    const checkOutDate = args.checkOutDate ?? getNextDate(checkInDate);
+
+    if (!isValidDateRange(checkInDate, checkOutDate)) {
+      return pickByLanguage(language, {
+        bn: "অনুগ্রহ করে চেক-ইন ও চেক-আউট তারিখ YYYY-MM-DD ফরম্যাটে জানান।",
+        en: "Please provide valid check-in and check-out dates in YYYY-MM-DD format.",
+      });
+    }
+
+    const reservedUnits = await ctx.runQuery(
+      internal.system.hotel.availability.getReservedUnitsForDates,
+      { roomTypeId: roomType._id, checkInDate, checkOutDate },
+    );
+    const availableUnits = Math.max(roomType.totalUnits - reservedUnits, 0);
+
+    return pickByLanguage(language, {
+      bn: availableUnits > 0
+        ? `"${roomType.name}" ${checkInDate} থেকে ${checkOutDate} পর্যন্ত খালি আছে। ${availableUnits}টি ইউনিট পাওয়া যাচ্ছে।`
+        : `"${roomType.name}" ${checkInDate} থেকে ${checkOutDate} পর্যন্ত খালি নেই।`,
+      en: availableUnits > 0
+        ? `"${roomType.name}" is available from ${spokenEnglishDate(checkInDate)} to ${spokenEnglishDate(checkOutDate)}. ${numberToWords(availableUnits)} unit(s) available.`
+        : `"${roomType.name}" is not available from ${spokenEnglishDate(checkInDate)} to ${spokenEnglishDate(checkOutDate)}.`,
+    });
+  }
+
   if (status.state === "available") {
     return pickByLanguage(language, {
       bn: `"${roomType.name}" রুমটি এই মুহূর্তে খালি আছে। প্রতি রাত মূল্য ৳${roomType.basePrice}, সর্বোচ্চ ${roomType.maxOccupancy} জন থাকতে পারবেন।`,
-      en: `"${roomType.name}" is currently available. ৳${roomType.basePrice}/night, sleeps up to ${roomType.maxOccupancy} guests.`,
+      en: `"${roomType.name}" is currently available. BDT ${numberToWords(roomType.basePrice)} per night, sleeps up to ${numberToWords(roomType.maxOccupancy)} guests.`,
     });
   }
 
@@ -68,6 +102,76 @@ export const checkAvailabilityLogic = async (
     bn: `"${roomType.name}" রুমটি বর্তমানে বুক করা আছে।`,
     en: `"${roomType.name}" is currently booked.`,
   });
+};
+
+export const listAvailableRoomsLogic = async (
+  ctx: ActionCtx,
+  conversation: Doc<"conversations">,
+  language: GuestLanguage,
+  args: { checkInDate?: string; checkOutDate?: string },
+): Promise<string> => {
+  const checkInDate = args.checkInDate ?? getCurrentDate();
+  const checkOutDate = args.checkOutDate ?? getNextDate(checkInDate);
+
+  if (!isValidDateRange(checkInDate, checkOutDate)) {
+    return pickByLanguage(language, {
+      bn: "অনুগ্রহ করে চেক-ইন ও চেক-আউট তারিখ YYYY-MM-DD ফরম্যাটে জানান।",
+      en: "Please provide valid check-in and check-out dates in YYYY-MM-DD format.",
+    });
+  }
+
+  const roomTypes = await ctx.runQuery(
+    internal.system.hotel.roomTypes.getManyByOrganization,
+    { organizationId: conversation.organizationId },
+  );
+
+  const rooms = await Promise.all(
+    roomTypes.map(async (roomType) => {
+      const reservedUnits = await ctx.runQuery(
+        internal.system.hotel.availability.getReservedUnitsForDates,
+        { roomTypeId: roomType._id, checkInDate, checkOutDate },
+      );
+
+      return {
+        ...roomType,
+        availableUnits: Math.max(roomType.totalUnits - reservedUnits, 0),
+      };
+    }),
+  );
+
+  const availableRooms = rooms.filter((room) => room.availableUnits > 0);
+
+  if (availableRooms.length === 0) {
+    return pickByLanguage(language, {
+      bn: `${spokenBengaliDate(checkInDate)} থেকে ${spokenBengaliDate(checkOutDate)} পর্যন্ত কোনো রুম খালি নেই।`,
+      en: `No rooms are available from ${spokenEnglishDate(checkInDate)} to ${spokenEnglishDate(checkOutDate)}.`,
+    });
+  }
+
+  const roomListBn = availableRooms
+    .map(
+      (room) =>
+        `${room.name} — ${bengaliDigits(room.availableUnits)}টি রুম খালি আছে। প্রতি রাতের ভাড়া ${bengaliDigits(room.basePrice)} টাকা। সর্বোচ্চ ${bengaliDigits(room.maxOccupancy)} জন থাকতে পারবেন।`,
+    )
+    .join("\n");
+
+  const roomListEn = availableRooms
+    .map(
+      (room) =>
+        `${room.name} — ${numberToWords(room.availableUnits)} available, BDT ${numberToWords(room.basePrice)} per night, up to ${numberToWords(room.maxOccupancy)} guests`,
+    )
+    .join("\n");
+
+  return pickByLanguage(language, {
+    bn: `${spokenBengaliDate(checkInDate)} থেকে ${spokenBengaliDate(checkOutDate)} পর্যন্ত উপলব্ধ রুম:\n${roomListBn}`,
+    en: `Available rooms from ${spokenEnglishDate(checkInDate)} to ${spokenEnglishDate(checkOutDate)}:\n${roomListEn}`,
+  });
+};
+
+const getNextDate = (date: string) => {
+  const nextDate = new Date(`${date}T00:00:00Z`);
+  nextDate.setUTCDate(nextDate.getUTCDate() + 1);
+  return nextDate.toISOString().slice(0, 10);
 };
 
 export const quoteRoomLogic = async (
@@ -97,7 +201,7 @@ export const quoteRoomLogic = async (
   if (args.partySize > roomType.maxOccupancy) {
     return pickByLanguage(language, {
       bn: `"${roomType.name}" রুমে সর্বোচ্চ ${roomType.maxOccupancy} জন থাকতে পারবেন, আপনার দলের সংখ্যা ${args.partySize} জন। অনুগ্রহ করে অন্য রুম টাইপ বিবেচনা করুন।`,
-      en: `"${roomType.name}" sleeps up to ${roomType.maxOccupancy} guests, but your party is ${args.partySize}. Please consider a different room type.`,
+      en: `"${roomType.name}" sleeps up to ${numberToWords(roomType.maxOccupancy)} guests, but your party is ${numberToWords(args.partySize)}. Please consider a different room type.`,
     });
   }
 
@@ -139,14 +243,17 @@ export const quoteRoomLogic = async (
   const packageList = selectedPackages
     .map((p) => `${p.name} (৳${p.price})`)
     .join(", ");
+  const packageListEnglish = selectedPackages
+    .map((p) => `${p.name} (BDT ${numberToWords(p.price)})`)
+    .join(", ");
 
   return pickByLanguage(language, {
     bn: `"${roomType.name}" — ${nights} রাত x ৳${roomType.basePrice} = ৳${roomTotal}${
       selectedPackages.length ? `\nযোগ করা প্যাকেজ: ${packageList}` : ""
     }\nমোট মূল্য: ৳${total}`,
-    en: `"${roomType.name}" — ${nights} nights x ৳${roomType.basePrice} = ৳${roomTotal}${
-      selectedPackages.length ? `\nAdded packages: ${packageList}` : ""
-    }\nTotal: ৳${total}`,
+     en: `"${roomType.name}" — ${numberToWords(nights)} nights at BDT ${numberToWords(roomType.basePrice)} per night, totaling BDT ${numberToWords(roomTotal)}${
+       selectedPackages.length ? `\nAdded packages: ${packageListEnglish}` : ""
+     }\nTotal: BDT ${numberToWords(total)}`,
   });
 };
 
@@ -238,7 +345,7 @@ export const holdRoomLogic = async (
       .filter((r) => r._id !== roomType._id)
       .sort((a, b) => a.basePrice - b.basePrice)
       .slice(0, 2)
-      .map((r) => `${r.name} (৳${r.basePrice}/night)`)
+       .map((r) => `${r.name} (BDT ${numberToWords(r.basePrice)} per night)`)
       .join(", ");
 
     await ctx.runMutation(internal.system.hotel.waitlist.add, {
@@ -261,7 +368,7 @@ export const holdRoomLogic = async (
 
   return pickByLanguage(language, {
     bn: `"${roomType.name}" রুমটি আপনার জন্য হোল্ড করা হয়েছে, মোট মূল্য ৳${quotedTotalPrice}। এই হোল্ডটি প্রায় ${expiresInMinutes} মিনিট পর্যন্ত বৈধ থাকবে — এর মধ্যে বুকিং নিশ্চিত করুন।`,
-    en: `"${roomType.name}" has been held for you, total ৳${quotedTotalPrice}. This hold is valid for about ${expiresInMinutes} minutes — please confirm your booking before then.`,
+      en: `"${roomType.name}" has been held for you, total BDT ${numberToWords(quotedTotalPrice)}. This hold is valid for about ${numberToWords(expiresInMinutes)} minutes — please confirm your booking before then.`,
   });
 };
 
